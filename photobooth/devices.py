@@ -2,7 +2,11 @@
 #  Copyright (C) 2016 David Brookshire <dave@brookshire.org>
 #
 import RPi.GPIO as GPIO
+from picamera import PiCamera
 
+class Camera(PiCamera):
+    def setup(self):
+        self.hflip = True
 
 class Relay():
     state = False  # True==On, False==Off
