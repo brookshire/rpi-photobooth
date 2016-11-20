@@ -16,25 +16,19 @@ class Booth:
     flash = None
     button_light = None
     button_input = None
-    display = None
 
     def __init__(self):
         self.camera = Camera()
         self.flash = Relay(FLASH_GPIO)
         self.button_light = Relay(BUTTON_LIGHT_GPIO)
         self.button_input = Button(BUTTON_INPUT_GPIO)
-        # self.display = BoothDisplay()
 
     def setReady(self):
         self.flash.off()
         self.button_light.on()
         self.camera.setup()
-        # self.camera.start_preview()
-        # self.display.displayReadyMessage()
-        # self.display.display()
 
     def takePic(self):
-        # self.display.root.
         self.button_light.off()
         self.flash.on()
         self.camera.start_preview()
@@ -42,9 +36,6 @@ class Booth:
         self.camera.stop_preview()
         self.flash.off()
         self.button_light.on()
-        print("OH SNAP")
-
-
 
 if __name__=='__main__':
     GPIO.setmode(GPIO.BCM)

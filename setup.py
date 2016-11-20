@@ -9,5 +9,5 @@ setup(
     author='Dave Brookshire',
     author_email='dave@brookshire.org',
     description='',
-    scripts=['run.py']
+    scripts=['runbooth.py']
 )
