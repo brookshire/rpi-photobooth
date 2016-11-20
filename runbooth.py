@@ -10,6 +10,7 @@ from time import sleep
 
 import os
 import datetime
+import paramiko
 
 import RPi.GPIO as GPIO
 
@@ -45,10 +46,24 @@ class Booth:
         sleep(button_delay)
 
         self.camera.capture(fname)
+        self.uploadPic(fname)
 
         self.camera.stop_preview()
         self.flash.off()
         self.button_light.on()
+
+    def uploadPic(self, fname):
+        base_fname = os.path.basename(fname)
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(remote_server,
+                    username=remote_user,
+                    key_filename=private_key)
+        sftp = ssh.open_sftp()
+        sftp.put(fname,
+                 os.path.join(remote_path, base_fname))
+        sftp.close()
+        ssh.close()
 
 
 if __name__ == '__main__':
