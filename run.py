@@ -20,23 +20,23 @@ class Booth:
 
     def __init__(self):
         self.camera = Camera()
-        # self.flash = Relay(FLASH_GPIO)
+        self.flash = Relay(FLASH_GPIO)
         self.button_light = Relay(BUTTON_LIGHT_GPIO)
         self.button_input = Button(BUTTON_INPUT_GPIO)
-        self.display = BoothDisplay()
+        # self.display = BoothDisplay()
 
     def setReady(self):
-        # self.flash.off()
+        self.flash.off()
         self.button_light.on()
         self.camera.setup()
         # self.camera.start_preview()
-        self.display.displayReadyMessage()
-        self.display.display()
+        # self.display.displayReadyMessage()
+        # self.display.display()
 
     def takePic(self):
         # self.display.root.
         self.button_light.off()
-        # self.flash.on()
+        self.flash.on()
         self.camera.start_preview()
         sleep(5)
         self.camera.stop_preview()

@@ -20,11 +20,11 @@ class Relay():
         return "Relay-%d" % self.gpio
 
     def on(self):
-        GPIO.output(self.gpio, True)
+        GPIO.output(self.gpio, False)
         self.state = True
 
     def off(self):
-        GPIO.output(self.gpio, False)
+        GPIO.output(self.gpio, True)
         self.state = False
 
 
