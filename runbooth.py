@@ -11,20 +11,30 @@ from time import sleep
 import os
 import datetime
 import paramiko
+import threading
+import Queue
+import sys
 
 import RPi.GPIO as GPIO
 
 FLASH_GPIO = 17
 BUTTON_LIGHT_GPIO = 18
 BUTTON_INPUT_GPIO = 27
+QUIT_INPUT_GPIO = 22
+
+queueLock = threading.Lock()
+exitFlag = False
 
 
 class Booth:
     flash = None
     button_light = None
     button_input = None
+    quit_input = None
+    q = None
 
-    def __init__(self):
+    def __init__(self, q):
+        self.q = q
         if not os.path.exists(local_save_directory):
             print "Creating {0} directory to save pics locally".format(local_save_directory)
             os.mkdir(local_save_directory)
@@ -33,6 +43,7 @@ class Booth:
         self.flash = Relay(FLASH_GPIO)
         self.button_light = Relay(BUTTON_LIGHT_GPIO)
         self.button_input = Button(BUTTON_INPUT_GPIO)
+        self.quit_input = Button(QUIT_INPUT_GPIO)
 
     def setReady(self):
         self.flash.off()
@@ -46,11 +57,30 @@ class Booth:
         sleep(button_delay)
 
         self.camera.capture(fname)
-        self.uploadPic(fname)
+
+        queueLock.acquire()
+        self.q.put(fname)
+        queueLock.release()
 
         self.camera.stop_preview()
         self.flash.off()
         self.button_light.on()
+
+
+class UploaderThread(threading.Thread):
+    def __init__(self, q):
+        super(UploaderThread, self).__init__(self)
+        self.q = q
+
+    def run(self):
+        while not exitFlag:
+            queueLock.acquire()
+            if not self.q.empty():
+                fname = self.q.get()
+                print("Found {0} on queue to upload".format(fname))
+                self.uploadPic(fname)
+                print("Successfully uploaded {0}".format(fname))
+            queueLock.release()
 
     def uploadPic(self, fname):
         base_fname = os.path.basename(fname)
@@ -68,14 +98,22 @@ class Booth:
 
 if __name__ == '__main__':
     GPIO.setmode(GPIO.BCM)
+    uploadQueue = Queue.Queue(10)
+    uploadThread = UploaderThread(uploadQueue)
 
-    funbox = Booth()
+    funbox = Booth(uploadQueue)
     funbox.setReady()
 
     try:
         while True:
 
             input_state = funbox.button_input.get_state()
+            input_quit = funbox.quit_input.get_state()
+
+            if not input_quit:
+                exitFlag = True
+                uploadThread.join()
+                sys.exit(0)
 
             if not input_state:
                 now = datetime.datetime.now()
