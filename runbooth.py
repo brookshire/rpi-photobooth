@@ -40,15 +40,27 @@ class Booth:
             os.mkdir(local_save_directory)
 
         self.camera = Camera()
+        self.tweakCamera()
         self.flash = Relay(FLASH_GPIO)
         self.button_light = Relay(BUTTON_LIGHT_GPIO)
         self.button_input = Button(BUTTON_INPUT_GPIO)
         self.quit_input = Button(QUIT_INPUT_GPIO)
 
+    def tweakCamera(self):
+        print ("Tweaking camera settings")
+        self.camera.brightness = 60
+        self.camera.saturation = 60
+        # self.camera.iSO = 400
+
     def setReady(self):
         self.flash.off()
         self.button_light.on()
         self.camera.setup()
+
+    def setOff(self):
+        self.flash.off()
+        self.button_light.off()
+        self.camera.stop_preview()
 
     def takePic(self, fname):
         self.button_light.off()
@@ -68,8 +80,9 @@ class Booth:
 
 
 class UploaderThread(threading.Thread):
-    def __init__(self, q):
-        super(UploaderThread, self).__init__(self)
+    def __init__(self, id, q):
+        threading.Thread.__init__(self)
+        self.id = id
         self.q = q
 
     def run(self):
@@ -77,13 +90,21 @@ class UploaderThread(threading.Thread):
             queueLock.acquire()
             if not self.q.empty():
                 fname = self.q.get()
-                print("Found {0} on queue to upload".format(fname))
-                self.uploadPic(fname)
-                print("Successfully uploaded {0}".format(fname))
+                print("{0} Found {1} on queue to upload".format(self.id,
+                                                                fname))
+                try:
+                    self.uploadPic(fname)
+                    print("{0} Successfully uploaded {1}".format(self.id,
+                                                                 fname))
+                except paramiko.ssh_exception.SSHException:
+                    print("{0} Failed to upload {1}, requeuing".format(self.id,
+                                                                       fname))
+                    self.q.put(fname)
             queueLock.release()
 
     def uploadPic(self, fname):
         base_fname = os.path.basename(fname)
+
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(remote_server,
@@ -99,20 +120,28 @@ class UploaderThread(threading.Thread):
 if __name__ == '__main__':
     GPIO.setmode(GPIO.BCM)
     uploadQueue = Queue.Queue(10)
-    uploadThread = UploaderThread(uploadQueue)
+    threads = []
+    for i in range(1, upload_threads):
+        new_t = UploaderThread(i, uploadQueue)
+        new_t.start()
+        print("Started upload thread {0}".format(i))
+        threads.append(new_t)
 
-    funbox = Booth(uploadQueue)
-    funbox.setReady()
+    boothbox = Booth(uploadQueue)
+    boothbox.setReady()
 
     try:
         while True:
 
-            input_state = funbox.button_input.get_state()
-            input_quit = funbox.quit_input.get_state()
+            input_state = boothbox.button_input.get_state()
+            input_quit = boothbox.quit_input.get_state()
 
             if not input_quit:
                 exitFlag = True
-                uploadThread.join()
+                boothbox.setOff()
+                GPIO.cleanup()
+                for t in threads:
+                    t.join()
                 sys.exit(0)
 
             if not input_state:
@@ -121,10 +150,10 @@ if __name__ == '__main__':
                 fname = "{0}/{1}{2}.jpg".format(local_save_directory,
                                                 local_save_prefix,
                                                 ts)
-                funbox.takePic(fname)
+                boothbox.takePic(fname)
 
     except KeyboardInterrupt:
         print("Shutting down")
-        funbox.camera.stop_preview()
+        boothbox.camera.stop_preview()
         GPIO.cleanup()
         print("Exiting")
