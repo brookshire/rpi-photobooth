@@ -41,10 +41,12 @@ class Booth:
 
         self.camera = Camera()
         self.tweakCamera()
-        self.flash = Relay(FLASH_GPIO)
         self.button_light = Relay(BUTTON_LIGHT_GPIO)
         self.button_input = Button(BUTTON_INPUT_GPIO)
         self.quit_input = Button(QUIT_INPUT_GPIO)
+
+        if use_flash:
+            self.flash = Relay(FLASH_GPIO)
 
     def tweakCamera(self):
         print ("Tweaking camera settings")
@@ -53,18 +55,25 @@ class Booth:
         # self.camera.iSO = 400
 
     def setReady(self):
-        self.flash.off()
+        if use_flash:
+            self.flash.off()
+
         self.button_light.on()
         self.camera.setup()
 
     def setOff(self):
-        self.flash.off()
+        if use_flash:
+            self.flash.off()
+
         self.button_light.off()
         self.camera.stop_preview()
 
     def takePic(self, fname):
         self.button_light.off()
-        self.flash.on()
+
+        if use_flash:
+            self.flash.on()
+
         self.camera.start_preview()
         sleep(button_delay)
 
@@ -75,7 +84,10 @@ class Booth:
         queueLock.release()
 
         self.camera.stop_preview()
-        self.flash.off()
+
+        if use_flash:
+            self.flash.off()
+
         self.button_light.on()
 
 

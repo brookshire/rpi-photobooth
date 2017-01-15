@@ -10,3 +10,4 @@ remote_server = "wedding.brookshire.org"
 remote_path = "/home/ec2-user/sites/brookshire.org/wedding/wp-content/uploads/booth"
 private_key = "/root/.ssh/id_rsa"
 upload_threads = 5
+use_flash = False
