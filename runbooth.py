@@ -74,7 +74,7 @@ class Booth:
 
         self.camera.capture(fname)
 
-        if self.q is not None:
+        if upload_images:
             queueLock.acquire()
             self.q.put(fname)
             queueLock.release()
@@ -127,19 +127,15 @@ class UploaderThread(threading.Thread):
 if __name__ == '__main__':
     GPIO.setmode(GPIO.BCM)
 
-    if upload_images is not None:
-        uploadQueue = Queue.Queue(10)
-        threads = []
-        for i in range(1, upload_threads):
-            new_t = UploaderThread(i, uploadQueue)
-            new_t.start()
-            print("Started upload thread {0}".format(i))
-            threads.append(new_t)
+    uploadQueue = Queue.Queue(10)
+    threads = []
+    for i in range(1, upload_threads):
+        new_t = UploaderThread(i, uploadQueue)
+        new_t.start()
+        print("Started upload thread {0}".format(i))
+        threads.append(new_t)
 
-        boothbox = Booth(uploadQueue)
-    else:
-        boothbox = Booth(None)
-
+    boothbox = Booth(uploadQueue)
     boothbox.setReady()
 
     try:
@@ -153,9 +149,8 @@ if __name__ == '__main__':
                 boothbox.setOff()
                 GPIO.cleanup()
 
-                if upload_images is not None:
-                    for t in threads:
-                        t.join()
+                for t in threads:
+                    t.join()
                 sys.exit(0)
 
             if not input_state:

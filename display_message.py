@@ -21,18 +21,20 @@ wait_label = Label(parent, text="Then wait {0} seconds".format(button_delay),
                    fg=ans_text_color,
                    bg=background_color,
                    font=("Courier", 36)).pack()
-upload_label = Label(parent, text="Picture will be uploaded to",
-                    anchor=CENTER,
-                   justify=CENTER,
-                   fg=ans_text_color,
-                   bg=background_color,
-                   font=("Courier", 20)).pack()
-upload2_label = Label(parent, text=remote_url,
-                      anchor=CENTER,
-                      justify=CENTER,
-                      fg=ans_text_color,
-                      bg=background_color,
-                      font=("Courier", 20)).pack()
+
+if upload_images:
+    upload_label = Label(parent, text="Picture will be uploaded to",
+                        anchor=CENTER,
+                       justify=CENTER,
+                       fg=ans_text_color,
+                       bg=background_color,
+                       font=("Courier", 20)).pack()
+    upload2_label = Label(parent, text=remote_url,
+                          anchor=CENTER,
+                          justify=CENTER,
+                          fg=ans_text_color,
+                          bg=background_color,
+                          font=("Courier", 20)).pack()
 
 root.overrideredirect(True)
 root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
