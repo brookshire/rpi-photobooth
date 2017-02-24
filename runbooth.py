@@ -33,8 +33,9 @@ class Booth:
     quit_input = None
     q = None
 
-    def __init__(self, q):
+    def __init__(self, q=None):
         self.q = q
+
         if not os.path.exists(local_save_directory):
             print "Creating {0} directory to save pics locally".format(local_save_directory)
             os.mkdir(local_save_directory)
@@ -44,9 +45,7 @@ class Booth:
         self.button_light = Relay(BUTTON_LIGHT_GPIO)
         self.button_input = Button(BUTTON_INPUT_GPIO)
         self.quit_input = Button(QUIT_INPUT_GPIO)
-
-        if use_flash:
-            self.flash = Relay(FLASH_GPIO)
+        self.flash = Relay(FLASH_GPIO)
 
     def tweakCamera(self):
         print ("Tweaking camera settings")
@@ -55,16 +54,12 @@ class Booth:
         # self.camera.iSO = 400
 
     def setReady(self):
-        if use_flash:
-            self.flash.off()
-
+        self.flash.off()
         self.button_light.on()
         self.camera.setup()
 
     def setOff(self):
-        if use_flash:
-            self.flash.off()
-
+        self.flash.off()
         self.button_light.off()
         self.camera.stop_preview()
 
@@ -79,14 +74,13 @@ class Booth:
 
         self.camera.capture(fname)
 
-        queueLock.acquire()
-        self.q.put(fname)
-        queueLock.release()
+        if self.q is not None:
+            queueLock.acquire()
+            self.q.put(fname)
+            queueLock.release()
 
         self.camera.stop_preview()
-
-        if use_flash:
-            self.flash.off()
+        self.flash.off()
 
         self.button_light.on()
 
@@ -117,29 +111,35 @@ class UploaderThread(threading.Thread):
     def uploadPic(self, fname):
         base_fname = os.path.basename(fname)
 
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(remote_server,
-                    username=remote_user,
-                    key_filename=private_key)
-        sftp = ssh.open_sftp()
-        sftp.put(fname,
-                 os.path.join(remote_path, base_fname))
-        sftp.close()
-        ssh.close()
+        if upload_type == "ssh":
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(remote_server,
+                        username=remote_user,
+                        key_filename=private_key)
+            sftp = ssh.open_sftp()
+            sftp.put(fname,
+                     os.path.join(remote_path, base_fname))
+            sftp.close()
+            ssh.close()
 
 
 if __name__ == '__main__':
     GPIO.setmode(GPIO.BCM)
-    uploadQueue = Queue.Queue(10)
-    threads = []
-    for i in range(1, upload_threads):
-        new_t = UploaderThread(i, uploadQueue)
-        new_t.start()
-        print("Started upload thread {0}".format(i))
-        threads.append(new_t)
 
-    boothbox = Booth(uploadQueue)
+    if upload_images is not None:
+        uploadQueue = Queue.Queue(10)
+        threads = []
+        for i in range(1, upload_threads):
+            new_t = UploaderThread(i, uploadQueue)
+            new_t.start()
+            print("Started upload thread {0}".format(i))
+            threads.append(new_t)
+
+        boothbox = Booth(uploadQueue)
+    else:
+        boothbox = Booth(None)
+
     boothbox.setReady()
 
     try:
@@ -152,8 +152,10 @@ if __name__ == '__main__':
                 exitFlag = True
                 boothbox.setOff()
                 GPIO.cleanup()
-                for t in threads:
-                    t.join()
+
+                if upload_images is not None:
+                    for t in threads:
+                        t.join()
                 sys.exit(0)
 
             if not input_state:
